@@ -151,53 +151,43 @@ public class Decoder {
     }
     
     public func startDecodingSpeech (utteranceComplete: (Hypotesis?) -> ()) {
-        
-        var error: NSErrorPointer = nil
-        AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryRecord, error: error)
-        
-        if error != nil {
-            println("Error setting the shared AVAudioSession: \(error)")
+        do {
+            try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryRecord)
+        } catch let error {
+            print("Error setting the shared AVAudioSession: \(error)")
             return
         }
-        
-        let tmpFileName = NSTemporaryDirectory()!.stringByAppendingPathComponent("TLSphinx-\(NSDate.timeIntervalSinceReferenceDate())")
-        let tmpAudioFile = NSURL(string: tmpFileName)
-        
-        let settings: [NSObject : AnyObject] = [
-            AVFormatIDKey:              kAudioFormatLinearPCM,
+        if let tmpFileName = NSURL(string:NSTemporaryDirectory())?.URLByAppendingPathComponent("TLSphinx-\(NSDate.timeIntervalSinceReferenceDate())") {
+        let settings: [String : AnyObject] = [
+            AVFormatIDKey:              Int(kAudioFormatLinearPCM),
             AVSampleRateKey:            16000.0,
             AVNumberOfChannelsKey:      1,
             AVLinearPCMBitDepthKey:     16,
             AVLinearPCMIsBigEndianKey:  false,
             AVLinearPCMIsFloatKey:      false
-        ]
-        
-        recorder = AVAudioRecorder(URL: tmpAudioFile, settings: settings, error: error)
-        
-        if error != nil {
-            println("Error setting the audio recorder: \(error)")
-            return
-        }
-        
-        if recorder.record() {
-            if let audioFileHandle = NSFileHandle(forReadingAtPath: tmpFileName) {
-                
-                start_utt()
-                
-                audioFileHandle.readabilityHandler = { (handler: NSFileHandle!) -> Void in
-                    
-                    let audioData  = handler.availableData
-                    
-                    if audioData.length > 0 {
-                        self.process_raw(audioData)
-                        
-                        if self.speechState == .Utterance {
-                            self.end_utt()
-                            utteranceComplete(self.get_hyp())
-                            self.start_utt()
+            ]
+            do {
+                recorder = try AVAudioRecorder(URL: tmpFileName, settings: settings)
+                if recorder.record() {
+                    if let audioFileHandle = try? NSFileHandle(forReadingFromURL: tmpFileName) {
+                        start_utt()
+                        audioFileHandle.readabilityHandler = { (handler: NSFileHandle!) -> Void in
+                            let audioData  = handler.availableData
+                            if audioData.length > 0 {
+                                self.process_raw(audioData)
+                                if self.speechState == .Utterance {
+                                    self.end_utt()
+                                    utteranceComplete(self.get_hyp())
+                                    self.start_utt()
+                                }
+                            }
                         }
                     }
                 }
+            } catch let error {
+                print("Error setting the audio recorder: \(error)")
+                return
+                
             }
         }
     }
