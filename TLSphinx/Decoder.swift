@@ -10,7 +10,7 @@ import Foundation
 import AVFoundation
 import Sphinx
 
-private enum SpeechStateEnum : Printable {
+private enum SpeechStateEnum : CustomStringConvertible {
     case Silence
     case Speech
     case Utterance
