@@ -44,6 +44,6 @@ class LiveDecode: XCTestCase {
         
         
         
-        }
     }
+}
 
